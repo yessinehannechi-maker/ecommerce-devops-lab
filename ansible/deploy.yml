@@ -11,8 +11,8 @@
         state: latest
         update_cache: yes
 
-    - name: Installer Docker
-      amazon.linux_extras:
+    - name: Installer Docker via yum
+      yum:
         name: docker
         state: present
 
