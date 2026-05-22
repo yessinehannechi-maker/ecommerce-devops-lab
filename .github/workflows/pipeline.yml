@@ -65,6 +65,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y ansible jq
+          ansible-galaxy collection install amazon.aws
 
       - name: Setup SSH Key
         run: |
