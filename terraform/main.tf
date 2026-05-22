@@ -103,7 +103,7 @@ resource "aws_security_group" "alb_sg" {
 # 7. Groupe de Sécurité pour les instances EC2 (Web)
 resource "aws_security_group" "ec2_sg" {
   name        = "ec2-security-group"
-  description = "Permettre SSH et le trafic depuis l'ALB"
+  description = "Security group for EC2 instances"
   vpc_id      = aws_vpc.main.id
 
   # Autoriser SSH depuis partout pour GitHub Actions et Ansible
