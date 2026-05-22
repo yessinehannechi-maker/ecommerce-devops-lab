@@ -1,0 +1,112 @@
+---
+- name: Deploiement de l'application E-Commerce avec Docker
+  hosts: web
+  become: yes
+  tasks:
+
+    # 1. Mise à jour des paquets et installation de Docker
+    - name: Mettre a jour les paquets yum
+      yum:
+        name: "*"
+        state: latest
+        update_cache: yes
+
+    - name: Installer Docker
+      amazon.linux_extras:
+        name: docker
+        state: present
+
+    - name: Demarrer et activer le service Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Ajouter l'utilisateur ec2-user au groupe docker
+      user:
+        name: ec2-user
+        groups: docker
+        append: yes
+
+    # 2. Installation de Docker Compose
+    - name: Telecharger Docker Compose
+      get_url:
+        url: https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-Linux-x86_64
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+
+    # 3. Création du fichier docker-compose.yml directement sur le serveur
+    - name: Creer le dossier de l'application
+      file:
+        path: /home/ec2-user/ecommerce
+        state: directory
+        owner: ec2-user
+        group: ec2-user
+
+    - name: Generer le fichier docker-compose.yml
+      copy:
+        dest: /home/ec2-user/ecommerce/docker-compose.yml
+        content: |
+          version: '3.8'
+
+          services:
+            # Base de donnees MongoDB
+            mongodb:
+              image: mongo:6.0
+              container_name: mongodb
+              ports:
+                - "27017:27017"
+              volumes:
+                - mongo_data:/data/db
+
+            # Application Node.js (E-commerce)
+            webapp:
+              image: node:18-alpine
+              container_name: node_app
+              ports:
+                - "3000:3000"
+              environment:
+                - MONGO_URI=mongodb://mongodb:27017/shop
+              command: >
+                sh -c "npm install express mongoose && 
+                       echo \"const express = require('express'); const mongoose = require('mongoose'); const app = express(); app.get('/', (req, res) => res.send('<h1>E-Commerce Store</h1><ul><li>Laptop \$$1200</li><li>Phone \$$800</li></ul>')); app.listen(3000);\" > server.js && 
+                       node server.js"
+              depends_on:
+                - mongodb
+
+            # Reverse Proxy Nginx pour rediriger le trafic du port 80 vers Node.js (port 3000)
+            nginx:
+              image: nginx:alpine
+              container_name: nginx_proxy
+              ports:
+                - "80:80"
+              volumes:
+                - ./nginx.conf:/etc/nginx/nginx.conf
+              depends_on:
+                - webapp
+
+          volumes:
+            mongo_data:
+
+    # 4. Configuration de Nginx
+    - name: Generer le fichier nginx.conf
+      copy:
+        dest: /home/ec2-user/ecommerce/nginx.conf
+        content: |
+          events {}
+          http {
+              server {
+                  listen 80;
+                  location / {
+                      proxy_pass http://webapp:3000;
+                      proxy_set_header Host \$host;
+                      proxy_set_header X-Real-IP \$remote_addr;
+                  }
+              }
+          }
+
+    # 5. Lancement de l'application
+    - name: Lancer les conteneurs avec Docker Compose
+      shell: /usr/local/bin/docker-compose up -d
+      args:
+        chdir: /home/ec2-user/ecommerce
