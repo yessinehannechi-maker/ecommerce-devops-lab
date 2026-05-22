@@ -42,7 +42,7 @@ jobs:
         run: terraform apply -auto-approve
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve tfplan
+        run: terraform apply -auto-approve 
 
       - name: Export Instance IPs
         id: export
