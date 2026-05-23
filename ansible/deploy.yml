@@ -2,9 +2,18 @@
 - name: Deploiement de l'application E-Commerce avec Docker
   hosts: web
   become: yes
-  tasks:
+  gather_facts: no  # 👈 On désactive le module automatique qui fait planter le run
 
-    # 1. Mise à jour des paquets et installation de Docker
+  tasks:
+    # 1. Installation forcée des dépendances Python requises
+    - name: Installer Python3 et ses composants de base
+      raw: sudo yum install -y python3 python3-pip
+
+    # 2. On relance la récolte des faits maintenant que Python est prêt
+    - name: Recueillir les faits systeme manuellement
+      setup:
+
+    # 3. Mise à jour des paquets et installation de Docker
     - name: Mettre a jour les paquets yum
       yum:
         name: "*"
@@ -28,14 +37,14 @@
         groups: docker
         append: yes
 
-    # 2. Installation de Docker Compose
+    # 4. Installation de Docker Compose
     - name: Telecharger Docker Compose
       get_url:
         url: https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-Linux-x86_64
         dest: /usr/local/bin/docker-compose
         mode: '0755'
 
-    # 3. Création du dossier de l'application
+    # 5. Création du dossier de l'application
     - name: Creer le dossier de l'application
       file:
         path: /home/ec2-user/ecommerce
@@ -43,7 +52,7 @@
         owner: ec2-user
         group: ec2-user
 
-    # 4. Génération directe du fichier de l'application server.js
+    # 6. Génération directe du fichier de l'application server.js
     - name: Generer le fichier de l'application server.js
       copy:
         dest: /home/ec2-user/ecommerce/server.js
@@ -56,7 +65,7 @@
           app.get('/', (req, res) => res.send('<h1>E-Commerce Store</h1><ul><li>Laptop $1200</li><li>Phone $800</li></ul>'));
           app.listen(3000);
 
-    # 5. Création du fichier docker-compose.yml propre
+    # 7. Création du fichier docker-compose.yml propre
     - name: Generer le fichier docker-compose.yml
       copy:
         dest: /home/ec2-user/ecommerce/docker-compose.yml
@@ -99,7 +108,7 @@
           volumes:
             mongo_data:
 
-    # 6. Configuration de Nginx
+    # 8. Configuration de Nginx
     - name: Generer le fichier nginx.conf
       copy:
         dest: /home/ec2-user/ecommerce/nginx.conf
@@ -116,7 +125,7 @@
               }
           }
 
-    # 7. Lancement de l'application
+    # 9. Lancement de l'application
     - name: Lancer les conteneurs avec Docker Compose
       shell: /usr/local/bin/docker-compose up -d
       args:
